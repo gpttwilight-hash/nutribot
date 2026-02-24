@@ -2,11 +2,13 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from aiogram.types import Update
 
 from app.core.config import get_settings
 from app.routers import auth, food, gamification, subscription, weight, workouts
+from app.bot.handlers import bot, dp
 
 settings = get_settings()
 
@@ -14,10 +16,8 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    # Startup
     print("🚀 NutriBot API starting...")
     yield
-    # Shutdown
     print("👋 NutriBot API shutting down...")
 
 
@@ -58,3 +58,20 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.post(f"{settings.API_V1_PREFIX}/bot/webhook")
+async def bot_webhook(request: Request):
+    """Receive Telegram updates via webhook."""
+    # Verify secret token
+    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if settings.TELEGRAM_WEBHOOK_SECRET and secret != settings.TELEGRAM_WEBHOOK_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid secret token")
+
+    if bot is None:
+        raise HTTPException(status_code=503, detail="Bot not configured")
+
+    body = await request.json()
+    update = Update(**body)
+    await dp.feed_update(bot, update)
+    return {"ok": True}
