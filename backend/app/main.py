@@ -106,7 +106,14 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "bot_configured": _bot is not None}
+    import os
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    return {
+        "status": "healthy",
+        "bot_configured": _bot is not None,
+        "token_env_set": bool(token),
+        "token_preview": token[:10] + "..." if token else "empty",
+    }
 
 
 @app.post(f"{settings.API_V1_PREFIX}/bot/webhook")
