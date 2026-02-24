@@ -22,6 +22,15 @@ interface UserState {
         target_weight_kg?: number;
         activity_level: string;
     }) => Promise<any>;
+    updateProfile: (data: {
+        goal: string;
+        gender: string;
+        age: number;
+        weight_kg: number;
+        height_cm: number;
+        target_weight_kg?: number;
+        activity_level: string;
+    }) => Promise<any>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -76,6 +85,12 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     completeOnboarding: async (data) => {
         const { data: result } = await client.post('/auth/onboarding', data);
+        await get().fetchMe();
+        return result;
+    },
+
+    updateProfile: async (data) => {
+        const { data: result } = await client.put('/auth/profile', data);
         await get().fetchMe();
         return result;
     },

@@ -153,6 +153,47 @@ async def complete_onboarding(
     }
 
 
+class ProfileUpdateRequest(BaseModel):
+    goal: str
+    gender: str
+    age: int
+    weight_kg: float
+    height_cm: float
+    target_weight_kg: float | None = None
+    activity_level: str
+
+
+@router.put("/profile")
+async def update_profile(
+    body: ProfileUpdateRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update user body parameters and recalculate daily КБЖУ norms."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.goal = body.goal
+    user.gender = body.gender
+    user.age = body.age
+    user.weight_kg = body.weight_kg
+    user.height_cm = body.height_cm
+    user.target_weight_kg = body.target_weight_kg
+    user.activity_level = body.activity_level
+
+    norms = calculate_daily_norms(
+        body.gender, body.weight_kg, body.height_cm, body.age, body.activity_level, body.goal
+    )
+    user.daily_calories = norms["daily_calories"]
+    user.daily_protein_g = norms["daily_protein_g"]
+    user.daily_fat_g = norms["daily_fat_g"]
+    user.daily_carbs_g = norms["daily_carbs_g"]
+
+    return {"norms": norms}
+
+
 @router.get("/me")
 async def get_me(
     user_id: str = Depends(get_current_user_id),
